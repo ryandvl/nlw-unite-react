@@ -1,3 +1,4 @@
+import { ChangeEvent, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -7,7 +8,79 @@ import {
   SearchIcon,
 } from "lucide-react";
 
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import "dayjs/locale/pt-br";
+
+import { IconButton, Table, TableCell, TableHeader, TableRow } from ".";
+import { attendees } from "../data/attendees";
+
+dayjs.extend(relativeTime);
+dayjs.locale("pt-br");
+
 export function AttendeeList() {
+  const [search, setSearch] = useState(() => {
+    const url = new URL(window.location.toString());
+
+    if (url.searchParams.has("search")) {
+      return url.searchParams.get("search") ?? "";
+    }
+
+    return "";
+  });
+  const [page, setPage] = useState(() => {
+    const url = new URL(window.location.toString());
+
+    if (url.searchParams.has("page")) {
+      return Number(url.searchParams.get("page"));
+    }
+
+    return 1;
+  });
+
+  const totalPages = Math.ceil(attendees.length / 10);
+
+  function setCurrentSearch(search: string) {
+    const url = new URL(window.location.toString());
+
+    url.searchParams.set("search", search);
+
+    window.history.pushState({}, "", url);
+
+    setSearch(search);
+  }
+
+  function setCurrentPage(page: number) {
+    const url = new URL(window.location.toString());
+
+    url.searchParams.set("page", String(page));
+
+    window.history.pushState({}, "", url);
+
+    setPage(page);
+  }
+
+  function onSearchInputChanged(event: ChangeEvent<HTMLInputElement>) {
+    setCurrentSearch(event.target.value);
+    setCurrentPage(1);
+  }
+
+  function goToFirstPage() {
+    setCurrentPage(1);
+  }
+
+  function goToLastPage() {
+    setCurrentPage(totalPages);
+  }
+
+  function goToPreviousPage() {
+    setCurrentPage(page - 1);
+  }
+
+  function goToNextPage() {
+    setCurrentPage(page + 1);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-3 items-center">
@@ -21,103 +94,90 @@ export function AttendeeList() {
         </div>
       </div>
 
-      <div className="border border-white/10 rounded-lg">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-white/10">
-              <th
-                style={{ width: 48 }}
-                className="py-3 px-4 text-sm font-semibold text-left"
-              >
-                <input
-                  type="checkbox"
-                  className="size-4 bg-black/20 rounded border border-white/10"
-                />
-              </th>
-              <th className="py-3 px-4 text-sm font-semibold text-left">
-                Código
-              </th>
-              <th className="py-3 px-4 text-sm font-semibold text-left">
-                Participante
-              </th>
-              <th className="py-3 px-4 text-sm font-semibold text-left">
-                Data de inscrição
-              </th>
-              <th className="py-3 px-4 text-sm font-semibold text-left">
-                Data de check-in
-              </th>
-              <th
-                style={{ width: 64 }}
-                className="py-3 px-4 text-sm font-semibold text-left"
-              ></th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 10 }).map((_, i) => {
+      <Table>
+        <thead>
+          <tr className="border-b border-white/10">
+            <TableHeader style={{ width: 48 }}>
+              <input
+                type="checkbox"
+                className="size-4 bg-black/20 rounded border border-white/10"
+              />
+            </TableHeader>
+            <TableHeader>Código</TableHeader>
+            <TableHeader>Participante</TableHeader>
+            <TableHeader>Data de inscrição</TableHeader>
+            <TableHeader>Data de check-in</TableHeader>
+            <th
+              style={{ width: 64 }}
+              className="py-3 px-4 text-sm font-semibold text-left"
+            ></th>
+          </tr>
+        </thead>
+        <tbody>
+          {attendees
+            .slice((page - 1) * 10, page * 10)
+            .map(({ id, name, email, createdAt, checkedInAt }, i) => {
               return (
-                <tr
-                  key={i}
-                  className="border-b border-white/10 hover:bg-white/5"
-                >
-                  <td className="py-3 px-4 text-sm text-zinc-300">
+                <TableRow key={i}>
+                  <TableCell>
                     <input
                       type="checkbox"
                       className="size-4 bg-black/20 rounded border border-white/10"
                     />
-                  </td>
-                  <td className="py-3 px-4 text-sm text-zinc-300">12373</td>
-                  <td className="py-3 px-4 text-sm text-zinc-300">
+                  </TableCell>
+                  <TableCell>{id}</TableCell>
+                  <TableCell>
                     <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-white">Ryan</span>
-                      <span>ryandvl@ryandvl.com</span>
+                      <span className="font-semibold text-white">{name}</span>
+                      <span>{email}</span>
                     </div>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-zinc-300">
-                    7 dias atrás
-                  </td>
-                  <td className="py-3 px-4 text-sm text-zinc-300">
-                    3 dias atrás
-                  </td>
-                  <td className="py-3 px-4 text-sm text-zinc-300">
-                    <button className="bg-black/20 border border-white/10 rounded-md p-1.5">
+                  </TableCell>
+                  <TableCell>{dayjs().to(createdAt)}</TableCell>
+                  <TableCell>{dayjs().to(checkedInAt)}</TableCell>
+                  <TableCell>
+                    <IconButton transparent>
                       <MoreHorizontalIcon size={16} />
-                    </button>
-                  </td>
-                </tr>
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={3} className="py-3 px-4 text-sm text-zinc-300">
-                Mostrando 10 de 228 itens
-              </td>
-              <td
-                colSpan={3}
-                className="py-3 px-4 text-sm text-zinc-300 text-right"
-              >
-                <div className="inline-flex items-center gap-8">
-                  <span>Página 1 de 23</span>
-                  <div className="flex gap-1.5">
-                    <button className="bg-white/10 border border-white/10 rounded-md p-1.5">
-                      <ChevronsLeftIcon size={16} />
-                    </button>
-                    <button className="bg-white/10 border border-white/10 rounded-md p-1.5">
-                      <ChevronLeftIcon size={16} />
-                    </button>
-                    <button className="bg-white/10 border border-white/10 rounded-md p-1.5">
-                      <ChevronRightIcon size={16} />
-                    </button>
-                    <button className="bg-white/10 border border-white/10 rounded-md p-1.5">
-                      <ChevronsRightIcon size={16} />
-                    </button>
-                  </div>
+        </tbody>
+        <tfoot>
+          <tr>
+            <TableCell colSpan={3}>
+              Mostrando 10 de {attendees.length} itens
+            </TableCell>
+            <TableCell colSpan={3} className="text-right">
+              <div className="inline-flex items-center gap-8">
+                <span>
+                  Página {page} de {totalPages}
+                </span>
+                <div className="flex gap-1.5">
+                  <IconButton onClick={goToFirstPage} disabled={page === 1}>
+                    <ChevronsLeftIcon size={16} />
+                  </IconButton>
+                  <IconButton onClick={goToPreviousPage} disabled={page === 1}>
+                    <ChevronLeftIcon size={16} />
+                  </IconButton>
+                  <IconButton
+                    onClick={goToNextPage}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRightIcon size={16} />
+                  </IconButton>
+                  <IconButton
+                    onClick={goToLastPage}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronsRightIcon size={16} />
+                  </IconButton>
                 </div>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+              </div>
+            </TableCell>
+          </tr>
+        </tfoot>
+      </Table>
     </div>
   );
 }
