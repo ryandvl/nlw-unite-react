@@ -1,4 +1,4 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -13,10 +13,17 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/pt-br";
 
 import { IconButton, Table, TableCell, TableHeader, TableRow } from ".";
-import { attendees } from "../data/attendees";
 
 dayjs.extend(relativeTime);
 dayjs.locale("pt-br");
+
+interface Attendee {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  checkedInAt: string | null;
+}
 
 export function AttendeeList() {
   const [search, setSearch] = useState(() => {
@@ -28,6 +35,7 @@ export function AttendeeList() {
 
     return "";
   });
+
   const [page, setPage] = useState(() => {
     const url = new URL(window.location.toString());
 
@@ -37,8 +45,28 @@ export function AttendeeList() {
 
     return 1;
   });
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [total, setTotal] = useState(0);
 
-  const totalPages = Math.ceil(attendees.length / 10);
+  useEffect(() => {
+    const url = new URL(
+      "http://localhost:3333/events/9e9bd979-9d10-4915-b339-3786b1634f33/attendees"
+    );
+
+    url.searchParams.set("pageIndex", String(page - 1));
+    if (search.length > 1) {
+      url.searchParams.set("query", search);
+    }
+
+    fetch(url)
+      .then((response) => response.json())
+      .then((data) => {
+        setAttendees(data.attendees);
+        setTotal(data.total);
+      });
+  }, [page, search]);
+
+  const totalPages = Math.ceil(total / 10);
 
   function setCurrentSearch(search: string) {
     const url = new URL(window.location.toString());
@@ -88,6 +116,7 @@ export function AttendeeList() {
         <div className="px-3 w-72 py-1.5 border border-white/10 rounded-lg flex items-center gap-3">
           <SearchIcon size={16} className="text-emerald-300" />
           <input
+            onChange={onSearchInputChanged}
             className="bg-transparent flex-1 outline-none border-0 p-0 text-sm"
             placeholder="Buscar participante..."
           />
@@ -100,7 +129,7 @@ export function AttendeeList() {
             <TableHeader style={{ width: 48 }}>
               <input
                 type="checkbox"
-                className="size-4 bg-black/20 rounded border border-white/10"
+                className="size-4 bg-black/20 rounded border border-white/10 focus:ring-0"
               />
             </TableHeader>
             <TableHeader>Código</TableHeader>
@@ -114,39 +143,43 @@ export function AttendeeList() {
           </tr>
         </thead>
         <tbody>
-          {attendees
-            .slice((page - 1) * 10, page * 10)
-            .map(({ id, name, email, createdAt, checkedInAt }, i) => {
-              return (
-                <TableRow key={i}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      className="size-4 bg-black/20 rounded border border-white/10"
-                    />
-                  </TableCell>
-                  <TableCell>{id}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-white">{name}</span>
-                      <span>{email}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{dayjs().to(createdAt)}</TableCell>
-                  <TableCell>{dayjs().to(checkedInAt)}</TableCell>
-                  <TableCell>
-                    <IconButton transparent>
-                      <MoreHorizontalIcon size={16} />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+          {attendees.map(({ id, name, email, createdAt, checkedInAt }, i) => {
+            return (
+              <TableRow key={i}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    className="size-4 bg-black/20 rounded border border-white/10"
+                  />
+                </TableCell>
+                <TableCell>{id}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold text-white">{name}</span>
+                    <span>{email.toLowerCase()}</span>
+                  </div>
+                </TableCell>
+                <TableCell>{dayjs().to(createdAt)}</TableCell>
+                <TableCell>
+                  {checkedInAt === null ? (
+                    <span className="text-zinc-400">Não fez check-in</span>
+                  ) : (
+                    dayjs().to(checkedInAt)
+                  )}
+                </TableCell>
+                <TableCell>
+                  <IconButton transparent>
+                    <MoreHorizontalIcon size={16} />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </tbody>
         <tfoot>
           <tr>
             <TableCell colSpan={3}>
-              Mostrando 10 de {attendees.length} itens
+              Mostrando {attendees.length} de {total} itens
             </TableCell>
             <TableCell colSpan={3} className="text-right">
               <div className="inline-flex items-center gap-8">
